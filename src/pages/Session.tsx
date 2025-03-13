@@ -15,7 +15,6 @@ const Session = () => {
   const [isAudioLoading, setIsAudioLoading] = useState(true);
   const [volume, setVolume] = useState(80);
   const [audioError, setAudioError] = useState<string | null>(null);
-  const [loadAttempts, setLoadAttempts] = useState(0);
   const navigate = useNavigate();
   const timerRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -26,7 +25,6 @@ const Session = () => {
     setIsAudioReady(false);
     setIsAudioLoading(true);
     setAudioError(null);
-    setLoadAttempts(0);
     
     // Clean up function will run when component unmounts
     return () => {
@@ -50,24 +48,7 @@ const Session = () => {
     if (!selectedMeditation) return;
     
     const loadAudio = () => {
-      let audioSrc = selectedMeditation.audioUrl;
-      
-      // Try alternative URL format if this is a retry attempt
-      if (loadAttempts > 0) {
-        const fileName = selectedMeditation.audioUrl.split('/').pop();
-        if (fileName) {
-          // First try the meditations subdirectory
-          audioSrc = `https://self-compassion.org/wp-content/uploads/meditations/${fileName}`;
-        }
-      }
-      
-      // Additional fallback for third attempt
-      if (loadAttempts > 1) {
-        // Try without the meditations subdirectory as another alternative
-        audioSrc = `https://self-compassion.org/wp-content/uploads/${selectedMeditation.title.toLowerCase().replace(/\s+/g, '-')}.mp3`;
-      }
-      
-      console.log(`Loading audio from: ${audioSrc} (attempt ${loadAttempts + 1})`);
+      console.log(`Loading local audio file: ${selectedMeditation.audioUrl}`);
       
       if (audioRef.current) {
         audioRef.current.pause();
@@ -90,29 +71,14 @@ const Session = () => {
       };
       
       const handleError = (e: Event) => {
-        const errorEvent = e as ErrorEvent;
-        const errorDetail = errorEvent.message || 'Network or format error';
-        console.error('Error loading audio:', e, errorDetail);
+        console.error('Error loading audio:', e);
         setIsAudioLoading(false);
         setIsAudioReady(false);
-        
-        // Auto-retry with alternative URL if not the final attempt
-        if (loadAttempts < 2) {
-          setLoadAttempts(prev => prev + 1);
-          
-          toast({
-            title: "Retrying Audio Load",
-            description: `Loading failed, trying alternative source (${loadAttempts + 2}/3)`,
-          });
-          
-          return;
-        }
-        
-        setAudioError('Unable to load the meditation audio');
+        setAudioError('Unable to load the meditation audio. Check if the audio file exists in the public folder.');
         
         toast({
           title: "Audio Error",
-          description: "Unable to load the meditation audio. Please try again or try a different meditation.",
+          description: "Unable to load the meditation audio. Please try a different meditation.",
           variant: "destructive",
         });
         
@@ -124,11 +90,9 @@ const Session = () => {
       audio.addEventListener('canplaythrough', handleCanPlay);
       audio.addEventListener('loadstart', handleLoadStart);
       audio.addEventListener('error', handleError);
-      audio.addEventListener('abort', handleError);
       
       audio.volume = volume / 100;
-      audio.crossOrigin = "anonymous"; // Try with CORS enabled
-      audio.src = audioSrc;
+      audio.src = selectedMeditation.audioUrl;
       audio.load();
       
       audioRef.current = audio;
@@ -137,14 +101,13 @@ const Session = () => {
         audio.removeEventListener('canplaythrough', handleCanPlay);
         audio.removeEventListener('loadstart', handleLoadStart);
         audio.removeEventListener('error', handleError);
-        audio.removeEventListener('abort', handleError);
         audio.pause();
         audio.src = '';
       };
     };
     
     return loadAudio();
-  }, [selectedMeditation, loadAttempts, isPlaying, setIsPlaying, volume]);
+  }, [selectedMeditation, isPlaying, setIsPlaying, volume]);
 
   useEffect(() => {
     if (volume) {
@@ -228,19 +191,6 @@ const Session = () => {
       return;
     }
     
-    if (audioError) {
-      // Reset error state and try loading again
-      setIsAudioLoading(true);
-      setAudioError(null);
-      setLoadAttempts(0);
-      
-      toast({
-        title: "Reloading Audio",
-        description: "Attempting to reload the meditation audio.",
-      });
-      return;
-    }
-    
     setIsPlaying(!isPlaying);
   };
 
@@ -268,19 +218,6 @@ const Session = () => {
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
     }
-  };
-
-  const tryAlternativeUrl = () => {
-    if (!selectedMeditation) return;
-    
-    setLoadAttempts(curr => curr + 1);
-    setIsAudioLoading(true);
-    setAudioError(null);
-    
-    toast({
-      title: "Trying Alternative Source",
-      description: "Attempting to load from a different audio source.",
-    });
   };
 
   const progress = (duration - timeRemaining) / duration * 100;

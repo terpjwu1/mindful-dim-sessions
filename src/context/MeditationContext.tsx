@@ -24,12 +24,13 @@ interface MeditationContextType {
   setIsDimmed: (isDimmed: boolean) => void;
 }
 
+// Updated to use local audio files
 const defaultMeditations: Meditation[] = [
   {
     id: '1',
     title: 'Self-Compassion Break',
     description: 'A practice to remind yourself to apply the three components of self-compassion in daily life.',
-    audioUrl: 'https://self-compassion.org/wp-content/uploads/2015/12/self-compassion.break_.mp3',
+    audioUrl: '/audio/self-compassion-break.mp3',
     duration: 300, // 5 minutes in seconds
     isDefault: true,
     imageUrl: '/placeholder.svg'
@@ -38,7 +39,7 @@ const defaultMeditations: Meditation[] = [
     id: '2',
     title: 'Affectionate Breathing',
     description: 'A meditation on the breath, with a focus on gentle, affectionate awareness.',
-    audioUrl: 'https://self-compassion.org/wp-content/uploads/meditations/affectionatebreathing.mp3',
+    audioUrl: '/audio/affectionate-breathing.mp3',
     duration: 1320, // 22 minutes in seconds
     isDefault: true,
     imageUrl: '/placeholder.svg'
@@ -47,7 +48,7 @@ const defaultMeditations: Meditation[] = [
     id: '3',
     title: 'Loving-Kindness Meditation',
     description: 'A meditation that focuses on developing feelings of goodwill, kindness, and warmth towards ourselves and others.',
-    audioUrl: 'https://self-compassion.org/wp-content/uploads/meditations/LKM.self-compassion.mp3',
+    audioUrl: '/audio/loving-kindness-meditation.mp3',
     duration: 1200, // 20 minutes in seconds
     isDefault: true,
     imageUrl: '/placeholder.svg'
