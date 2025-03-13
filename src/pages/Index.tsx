@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Moon, Library } from 'lucide-react';
 import { useMeditation } from '@/context/MeditationContext';
 import MeditationCard from '@/components/MeditationCard';
