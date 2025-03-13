@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -20,7 +19,6 @@ const Session = () => {
   const timerRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Initialize audio when component mounts
   useEffect(() => {
     const audioSrc = selectedMeditation?.audioUrl || 'https://self-compassion.org/wp-content/uploads/2015/12/self-compassion.break_.mp3';
     console.log('Loading audio from:', audioSrc);
@@ -45,14 +43,12 @@ const Session = () => {
       setIsAudioReady(false);
       setAudioError('Unable to load the meditation audio');
       
-      // Show error toast
       toast({
         title: "Audio Error",
         description: "Unable to load the meditation audio. Please try again.",
         variant: "destructive",
       });
       
-      // If playing, stop it
       if (isPlaying) {
         setIsPlaying(false);
       }
@@ -61,7 +57,6 @@ const Session = () => {
     audio.addEventListener('canplaythrough', handleCanPlay);
     audio.addEventListener('error', handleError);
     
-    // Set the source and load after adding event listeners
     audio.volume = volume / 100;
     audio.src = audioSrc;
     audio.load();
@@ -76,19 +71,18 @@ const Session = () => {
     };
   }, [selectedMeditation, volume, setIsPlaying]);
 
-  // Handle volume changes
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = volume / 100;
+    if (volume) {
+      if (audioRef.current) {
+        audioRef.current.volume = volume / 100;
+      }
     }
   }, [volume]);
 
-  // Reset timer when duration changes
   useEffect(() => {
     setTimeRemaining(duration);
   }, [duration]);
 
-  // Handle play/pause
   useEffect(() => {
     if (isPlaying) {
       if (audioRef.current && isAudioReady) {
@@ -113,7 +107,6 @@ const Session = () => {
           setAudioError('Unable to play the meditation audio');
         }
       } else if (!isAudioReady && !isAudioLoading) {
-        // Don't allow playing if audio isn't ready and not loading
         setIsPlaying(false);
         if (!audioError) {
           setAudioError('Audio not ready');
@@ -121,9 +114,8 @@ const Session = () => {
         return;
       }
       
-      // Apply screen dimming and grayscale when meditation starts
       setIsDimmed(true);
-      setScreenBrightness(10); // dim to 10%
+      setScreenBrightness(20);
       setGreyscale(true);
       
       timerRef.current = window.setInterval(() => {
@@ -152,10 +144,8 @@ const Session = () => {
     };
   }, [isPlaying, setIsDimmed, isAudioReady, isAudioLoading, audioError]);
 
-  // Cleanup when component unmounts
   useEffect(() => {
     return () => {
-      // Restore screen brightness and remove grayscale when leaving
       if (isDimmed) {
         restoreOriginalSettings();
         setIsDimmed(false);
@@ -182,7 +172,6 @@ const Session = () => {
     }
     
     if (audioError) {
-      // Try to reload the audio if there was an error
       setIsAudioLoading(true);
       setAudioError(null);
       
@@ -213,7 +202,6 @@ const Session = () => {
       audioRef.current.pause();
     }
     
-    // Restore screen settings
     restoreOriginalSettings();
     setIsDimmed(false);
     
@@ -233,11 +221,9 @@ const Session = () => {
 
   const progress = (duration - timeRemaining) / duration * 100;
 
-  // Use a different audio URL format that works better in browsers
   const tryAlternativeUrl = () => {
     if (!selectedMeditation) return;
     
-    // Try to detect if we're using the original URL format that might be causing issues
     if (selectedMeditation.audioUrl.includes('self-compassion.org/wp-content/uploads/')) {
       const fileName = selectedMeditation.audioUrl.split('/').pop();
       const alternativeUrl = `https://self-compassion.org/wp-content/uploads/meditations/${fileName}`;
@@ -274,7 +260,6 @@ const Session = () => {
       
       <main className="flex-1 flex flex-col items-center justify-center px-4 animate-fade-in">
         <div className="w-full max-w-xs text-center space-y-8">
-          {/* Session circle */}
           <div className="relative mx-auto">
             <div 
               className="w-48 h-48 rounded-full bg-secondary flex items-center justify-center mx-auto"
@@ -291,7 +276,6 @@ const Session = () => {
             </div>
           </div>
           
-          {/* Controls */}
           <div className="space-y-4">
             <div className="flex items-center justify-center gap-4">
               <Button 
@@ -316,7 +300,6 @@ const Session = () => {
               </Button>
             </div>
             
-            {/* Title and Loading Indicator */}
             <div className="text-center mt-4">
               <h2 className="text-lg font-medium">
                 {selectedMeditation?.title || 'Self-Compassion Break'}
@@ -336,7 +319,6 @@ const Session = () => {
               </p>
             </div>
             
-            {/* Volume slider */}
             <div className="flex items-center gap-3 mt-6 px-2">
               <Volume2 size={16} className="text-muted-foreground" />
               <Slider
@@ -351,7 +333,6 @@ const Session = () => {
         </div>
       </main>
       
-      {/* Duration selector */}
       {!isPlaying && (
         <div className="p-8 animate-slide-up">
           <DurationSelector className="mb-4" />
