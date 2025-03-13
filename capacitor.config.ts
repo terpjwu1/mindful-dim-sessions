@@ -10,8 +10,11 @@ const config: CapacitorConfig = {
     cleartext: true
   },
   plugins: {
-    // This would be where we'd register our custom Screen plugin
-    // which would interface with Swift code
+    // This is where we would register our custom Screen plugin
+    // which interfaces with Swift code for native brightness and color filter control
+    Screen: {
+      // Any plugin configuration would go here
+    }
   }
 };
 

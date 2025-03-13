@@ -1,8 +1,8 @@
 // This utility file interfaces with native iOS functionality through Capacitor
 // For screen brightness and color filter functions
 
-// We'll use Capacitor for native iOS integration
-import { Plugins } from '@capacitor/core';
+// We'll use Capacitor's plugin pattern for native iOS integration
+import { registerPlugin } from '@capacitor/core';
 
 // Define a plugin interface for our native brightness control
 interface ScreenPlugin {
@@ -11,9 +11,8 @@ interface ScreenPlugin {
   restoreSettings(): Promise<void>;
 }
 
-// For a real implementation, we would register this plugin in Swift
-// and access it through Capacitor's plugin system
-const Screen = Plugins.Screen as ScreenPlugin;
+// Register our custom plugin (in a real app, this would be implemented in Swift)
+const Screen = registerPlugin<ScreenPlugin>('Screen');
 
 // Store original brightness to restore later
 let originalBrightness = 100;
