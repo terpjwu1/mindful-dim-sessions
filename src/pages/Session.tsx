@@ -15,6 +15,7 @@ const Session = () => {
   const [isAudioReady, setIsAudioReady] = useState(false);
   const [isAudioLoading, setIsAudioLoading] = useState(true);
   const [volume, setVolume] = useState(80);
+  const [audioError, setAudioError] = useState<string | null>(null);
   const navigate = useNavigate();
   const timerRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -29,41 +30,51 @@ const Session = () => {
       audioRef.current.src = '';
     }
     
-    audioRef.current = new Audio(audioSrc);
-    audioRef.current.volume = volume / 100;
-    setIsAudioLoading(true);
+    const audio = new Audio();
     
     const handleCanPlay = () => {
       console.log('Audio is ready to play');
       setIsAudioReady(true);
       setIsAudioLoading(false);
+      setAudioError(null);
     };
     
-    const handleError = (e: ErrorEvent) => {
+    const handleError = (e: Event) => {
       console.error('Error loading audio:', e);
       setIsAudioLoading(false);
+      setIsAudioReady(false);
+      setAudioError('Unable to load the meditation audio');
+      
+      // Show error toast
       toast({
         title: "Audio Error",
         description: "Unable to load the meditation audio. Please try again.",
         variant: "destructive",
       });
-    };
-    
-    audioRef.current.addEventListener('canplaythrough', handleCanPlay);
-    audioRef.current.addEventListener('error', handleError as EventListener);
-    
-    // Start loading the audio
-    audioRef.current.load();
-    
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.removeEventListener('canplaythrough', handleCanPlay);
-        audioRef.current.removeEventListener('error', handleError as EventListener);
-        audioRef.current.pause();
-        audioRef.current.src = '';
+      
+      // If playing, stop it
+      if (isPlaying) {
+        setIsPlaying(false);
       }
     };
-  }, [selectedMeditation, volume]);
+    
+    audio.addEventListener('canplaythrough', handleCanPlay);
+    audio.addEventListener('error', handleError);
+    
+    // Set the source and load after adding event listeners
+    audio.volume = volume / 100;
+    audio.src = audioSrc;
+    audio.load();
+    
+    audioRef.current = audio;
+    
+    return () => {
+      audio.removeEventListener('canplaythrough', handleCanPlay);
+      audio.removeEventListener('error', handleError);
+      audio.pause();
+      audio.src = '';
+    };
+  }, [selectedMeditation, volume, setIsPlaying]);
 
   // Handle volume changes
   useEffect(() => {
@@ -81,19 +92,33 @@ const Session = () => {
   useEffect(() => {
     if (isPlaying) {
       if (audioRef.current && isAudioReady) {
-        const playPromise = audioRef.current.play();
-        
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            console.error('Error playing audio:', error);
-            setIsPlaying(false);
-            toast({
-              title: "Playback Error",
-              description: "Unable to play the meditation audio. Please try again.",
-              variant: "destructive",
+        try {
+          const playPromise = audioRef.current.play();
+          
+          if (playPromise !== undefined) {
+            playPromise.catch(error => {
+              console.error('Error playing audio:', error);
+              setIsPlaying(false);
+              setAudioError('Unable to play the meditation audio');
+              toast({
+                title: "Playback Error",
+                description: "Unable to play the meditation audio. Please try again.",
+                variant: "destructive",
+              });
             });
-          });
+          }
+        } catch (error) {
+          console.error('Error playing audio:', error);
+          setIsPlaying(false);
+          setAudioError('Unable to play the meditation audio');
         }
+      } else if (!isAudioReady && !isAudioLoading) {
+        // Don't allow playing if audio isn't ready and not loading
+        setIsPlaying(false);
+        if (!audioError) {
+          setAudioError('Audio not ready');
+        }
+        return;
       }
       
       // Apply screen dimming and grayscale when meditation starts
@@ -125,7 +150,7 @@ const Session = () => {
         clearInterval(timerRef.current);
       }
     };
-  }, [isPlaying, setIsDimmed, isAudioReady]);
+  }, [isPlaying, setIsDimmed, isAudioReady, isAudioLoading, audioError]);
 
   // Cleanup when component unmounts
   useEffect(() => {
@@ -152,6 +177,26 @@ const Session = () => {
       toast({
         title: "Loading",
         description: "The meditation audio is still loading. Please wait.",
+      });
+      return;
+    }
+    
+    if (audioError) {
+      // Try to reload the audio if there was an error
+      setIsAudioLoading(true);
+      setAudioError(null);
+      
+      const audioSrc = selectedMeditation?.audioUrl || 'https://self-compassion.org/wp-content/uploads/2015/12/self-compassion.break_.mp3';
+      
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = audioSrc;
+        audioRef.current.load();
+      }
+      
+      toast({
+        title: "Reloading Audio",
+        description: "Attempting to reload the meditation audio.",
       });
       return;
     }
@@ -187,6 +232,29 @@ const Session = () => {
   };
 
   const progress = (duration - timeRemaining) / duration * 100;
+
+  // Use a different audio URL format that works better in browsers
+  const tryAlternativeUrl = () => {
+    if (!selectedMeditation) return;
+    
+    // Try to detect if we're using the original URL format that might be causing issues
+    if (selectedMeditation.audioUrl.includes('self-compassion.org/wp-content/uploads/')) {
+      const fileName = selectedMeditation.audioUrl.split('/').pop();
+      const alternativeUrl = `https://self-compassion.org/wp-content/uploads/meditations/${fileName}`;
+      
+      if (audioRef.current) {
+        audioRef.current.src = alternativeUrl;
+        audioRef.current.load();
+        setIsAudioLoading(true);
+        setAudioError(null);
+        
+        toast({
+          title: "Trying Alternative Source",
+          description: "Attempting to load from a different audio source.",
+        });
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -257,6 +325,10 @@ const Session = () => {
                 {isAudioLoading ? (
                   <span className="inline-flex items-center">
                     <span className="animate-pulse-slow mr-2">●</span> Loading audio...
+                  </span>
+                ) : audioError ? (
+                  <span className="text-destructive">
+                    {audioError}. <Button variant="link" size="sm" className="p-0 h-auto text-sm underline" onClick={tryAlternativeUrl}>Try alternative source</Button>
                   </span>
                 ) : (
                   selectedMeditation?.description || 'A practice to remind yourself to apply self-compassion'
