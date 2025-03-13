@@ -47,13 +47,32 @@ const Session = () => {
   }, [selectedMeditation?.id, isDimmed, setIsDimmed]);
 
   useEffect(() => {
+    if (!selectedMeditation) return;
+    
     const loadAudio = () => {
-      const audioSrc = selectedMeditation?.audioUrl || 'https://self-compassion.org/wp-content/uploads/2015/12/self-compassion.break_.mp3';
+      let audioSrc = selectedMeditation.audioUrl;
+      
+      // Try alternative URL format if this is a retry attempt
+      if (loadAttempts > 0) {
+        const fileName = selectedMeditation.audioUrl.split('/').pop();
+        if (fileName) {
+          // First try the meditations subdirectory
+          audioSrc = `https://self-compassion.org/wp-content/uploads/meditations/${fileName}`;
+        }
+      }
+      
+      // Additional fallback for third attempt
+      if (loadAttempts > 1) {
+        // Try without the meditations subdirectory as another alternative
+        audioSrc = `https://self-compassion.org/wp-content/uploads/${selectedMeditation.title.toLowerCase().replace(/\s+/g, '-')}.mp3`;
+      }
+      
       console.log(`Loading audio from: ${audioSrc} (attempt ${loadAttempts + 1})`);
       
       if (audioRef.current) {
         audioRef.current.pause();
-        audioRef.current.src = '';
+        audioRef.current.removeAttribute('src');
+        audioRef.current.load();
       }
       
       const audio = new Audio();
@@ -65,31 +84,28 @@ const Session = () => {
         setAudioError(null);
       };
       
+      const handleLoadStart = () => {
+        console.log('Audio load started');
+        setIsAudioLoading(true);
+      };
+      
       const handleError = (e: Event) => {
-        const errorDetail = e.type === 'error' ? 'Network or format error' : e.type;
+        const errorEvent = e as ErrorEvent;
+        const errorDetail = errorEvent.message || 'Network or format error';
         console.error('Error loading audio:', e, errorDetail);
         setIsAudioLoading(false);
         setIsAudioReady(false);
         
-        // Attempt to use alternative URL if first attempt failed
-        if (loadAttempts === 0 && selectedMeditation) {
+        // Auto-retry with alternative URL if not the final attempt
+        if (loadAttempts < 2) {
           setLoadAttempts(prev => prev + 1);
-          const fileName = selectedMeditation.audioUrl.split('/').pop();
-          if (fileName) {
-            const alternativeUrl = `https://self-compassion.org/wp-content/uploads/meditations/${fileName}`;
-            console.log(`Trying alternative URL: ${alternativeUrl}`);
-            
-            // Update audio source and try again
-            audio.src = alternativeUrl;
-            audio.load();
-            
-            toast({
-              title: "Trying Alternative Source",
-              description: "First source failed, trying alternative audio source.",
-            });
-            
-            return;
-          }
+          
+          toast({
+            title: "Retrying Audio Load",
+            description: `Loading failed, trying alternative source (${loadAttempts + 2}/3)`,
+          });
+          
+          return;
         }
         
         setAudioError('Unable to load the meditation audio');
@@ -106,10 +122,12 @@ const Session = () => {
       };
       
       audio.addEventListener('canplaythrough', handleCanPlay);
+      audio.addEventListener('loadstart', handleLoadStart);
       audio.addEventListener('error', handleError);
       audio.addEventListener('abort', handleError);
       
       audio.volume = volume / 100;
+      audio.crossOrigin = "anonymous"; // Try with CORS enabled
       audio.src = audioSrc;
       audio.load();
       
@@ -117,6 +135,7 @@ const Session = () => {
       
       return () => {
         audio.removeEventListener('canplaythrough', handleCanPlay);
+        audio.removeEventListener('loadstart', handleLoadStart);
         audio.removeEventListener('error', handleError);
         audio.removeEventListener('abort', handleError);
         audio.pause();
@@ -124,7 +143,7 @@ const Session = () => {
       };
     };
     
-    loadAudio();
+    return loadAudio();
   }, [selectedMeditation, loadAttempts, isPlaying, setIsPlaying, volume]);
 
   useEffect(() => {
@@ -251,28 +270,20 @@ const Session = () => {
     }
   };
 
-  const progress = (duration - timeRemaining) / duration * 100;
-
   const tryAlternativeUrl = () => {
     if (!selectedMeditation) return;
     
-    if (selectedMeditation.audioUrl.includes('self-compassion.org/wp-content/uploads/')) {
-      const fileName = selectedMeditation.audioUrl.split('/').pop();
-      const alternativeUrl = `https://self-compassion.org/wp-content/uploads/meditations/${fileName}`;
-      
-      if (audioRef.current) {
-        audioRef.current.src = alternativeUrl;
-        audioRef.current.load();
-        setIsAudioLoading(true);
-        setAudioError(null);
-        
-        toast({
-          title: "Trying Alternative Source",
-          description: "Attempting to load from a different audio source.",
-        });
-      }
-    }
+    setLoadAttempts(curr => curr + 1);
+    setIsAudioLoading(true);
+    setAudioError(null);
+    
+    toast({
+      title: "Trying Alternative Source",
+      description: "Attempting to load from a different audio source.",
+    });
   };
+
+  const progress = (duration - timeRemaining) / duration * 100;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
