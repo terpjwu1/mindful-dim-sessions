@@ -18,7 +18,7 @@ const MeditationCard: React.FC<MeditationCardProps> = ({ meditation, className }
   
   const startMeditation = () => {
     setSelectedMeditation(meditation);
-    setDuration(meditation.duration);
+    setDuration(meditation.duration); // Make sure duration is set to match the meditation
     navigate('/session');
   };
   
