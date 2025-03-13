@@ -20,102 +20,75 @@ const Session = () => {
   const timerRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Initialize audio when component mounts
   useEffect(() => {
-    // Reset state when component mounts or meditation changes
-    setTimeRemaining(duration);
-    setIsAudioReady(false);
-    setIsAudioLoading(true);
-    setAudioError(null);
+    const audioSrc = selectedMeditation?.audioUrl || 'https://self-compassion.org/wp-content/uploads/2015/12/self-compassion.break_.mp3';
+    console.log('Loading audio from:', audioSrc);
     
-    // Clean up function will run when component unmounts
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+    }
+    
+    const audio = new Audio();
+    
+    const handleCanPlay = () => {
+      console.log('Audio is ready to play');
+      setIsAudioReady(true);
+      setIsAudioLoading(false);
+      setAudioError(null);
+    };
+    
+    const handleError = (e: Event) => {
+      console.error('Error loading audio:', e);
+      setIsAudioLoading(false);
+      setIsAudioReady(false);
+      setAudioError('Unable to load the meditation audio');
+      
+      // Show error toast
+      toast({
+        title: "Audio Error",
+        description: "Unable to load the meditation audio. Please try again.",
+        variant: "destructive",
+      });
+      
+      // If playing, stop it
+      if (isPlaying) {
+        setIsPlaying(false);
+      }
+    };
+    
+    audio.addEventListener('canplaythrough', handleCanPlay);
+    audio.addEventListener('error', handleError);
+    
+    // Set the source and load after adding event listeners
+    audio.volume = volume / 100;
+    audio.src = audioSrc;
+    audio.load();
+    
+    audioRef.current = audio;
+    
     return () => {
-      if (isDimmed) {
-        restoreOriginalSettings();
-        setIsDimmed(false);
-      }
-      
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-      
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = '';
-      }
+      audio.removeEventListener('canplaythrough', handleCanPlay);
+      audio.removeEventListener('error', handleError);
+      audio.pause();
+      audio.src = '';
     };
-  }, [selectedMeditation?.id, isDimmed, setIsDimmed]);
+  }, [selectedMeditation, volume, setIsPlaying]);
 
+  // Handle volume changes
   useEffect(() => {
-    const loadAudio = () => {
-      const audioSrc = selectedMeditation?.audioUrl || '/audio/self-compassion-break.mp3';
-      console.log(`Loading local audio file: ${audioSrc}`);
-      
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = '';
-      }
-      
-      console.log("Audio load started");
-      const audio = new Audio();
-      
-      const handleCanPlay = () => {
-        console.log('Audio is ready to play');
-        setIsAudioReady(true);
-        setIsAudioLoading(false);
-        setAudioError(null);
-      };
-      
-      const handleError = (e: Event) => {
-        console.error('Error loading audio:', e);
-        setIsAudioLoading(false);
-        setIsAudioReady(false);
-        setAudioError('Unable to load the meditation audio');
-        
-        toast({
-          title: "Audio Error",
-          description: "Unable to load the meditation audio. Please check that the audio files are in the public/audio directory.",
-          variant: "destructive",
-        });
-        
-        if (isPlaying) {
-          setIsPlaying(false);
-        }
-      };
-      
-      audio.addEventListener('canplaythrough', handleCanPlay);
-      audio.addEventListener('error', handleError);
-      audio.addEventListener('abort', handleError);
-      
-      audio.volume = volume / 100;
-      audio.src = audioSrc;
-      audio.load();
-      
-      audioRef.current = audio;
-      
-      return () => {
-        audio.removeEventListener('canplaythrough', handleCanPlay);
-        audio.removeEventListener('error', handleError);
-        audio.removeEventListener('abort', handleError);
-        audio.pause();
-        audio.src = '';
-      };
-    };
-    
-    loadAudio();
-  }, [selectedMeditation, isPlaying, setIsPlaying, volume]);
-
-  useEffect(() => {
-    if (volume) {
-      if (audioRef.current) {
-        audioRef.current.volume = volume / 100;
-      }
+    if (audioRef.current) {
+      audioRef.current.volume = volume / 100;
     }
   }, [volume]);
 
+  // Reset timer when duration changes
   useEffect(() => {
     setTimeRemaining(duration);
   }, [duration]);
 
+  // Handle play/pause
   useEffect(() => {
     if (isPlaying) {
       if (audioRef.current && isAudioReady) {
@@ -140,6 +113,7 @@ const Session = () => {
           setAudioError('Unable to play the meditation audio');
         }
       } else if (!isAudioReady && !isAudioLoading) {
+        // Don't allow playing if audio isn't ready and not loading
         setIsPlaying(false);
         if (!audioError) {
           setAudioError('Audio not ready');
@@ -147,8 +121,9 @@ const Session = () => {
         return;
       }
       
+      // Apply screen dimming and grayscale when meditation starts
       setIsDimmed(true);
-      setScreenBrightness(20);
+      setScreenBrightness(10); // dim to 10%
       setGreyscale(true);
       
       timerRef.current = window.setInterval(() => {
@@ -175,7 +150,27 @@ const Session = () => {
         clearInterval(timerRef.current);
       }
     };
-  }, [isPlaying, setIsDimmed, isAudioReady, isAudioLoading, audioError, duration]);
+  }, [isPlaying, setIsDimmed, isAudioReady, isAudioLoading, audioError]);
+
+  // Cleanup when component unmounts
+  useEffect(() => {
+    return () => {
+      // Restore screen brightness and remove grayscale when leaving
+      if (isDimmed) {
+        restoreOriginalSettings();
+        setIsDimmed(false);
+      }
+      
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+    };
+  }, [isDimmed, setIsDimmed]);
 
   const togglePlayPause = () => {
     if (isAudioLoading) {
@@ -187,9 +182,17 @@ const Session = () => {
     }
     
     if (audioError) {
-      // Reset error state and try loading again
+      // Try to reload the audio if there was an error
       setIsAudioLoading(true);
       setAudioError(null);
+      
+      const audioSrc = selectedMeditation?.audioUrl || 'https://self-compassion.org/wp-content/uploads/2015/12/self-compassion.break_.mp3';
+      
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = audioSrc;
+        audioRef.current.load();
+      }
       
       toast({
         title: "Reloading Audio",
@@ -210,6 +213,7 @@ const Session = () => {
       audioRef.current.pause();
     }
     
+    // Restore screen settings
     restoreOriginalSettings();
     setIsDimmed(false);
     
@@ -229,6 +233,29 @@ const Session = () => {
 
   const progress = (duration - timeRemaining) / duration * 100;
 
+  // Use a different audio URL format that works better in browsers
+  const tryAlternativeUrl = () => {
+    if (!selectedMeditation) return;
+    
+    // Try to detect if we're using the original URL format that might be causing issues
+    if (selectedMeditation.audioUrl.includes('self-compassion.org/wp-content/uploads/')) {
+      const fileName = selectedMeditation.audioUrl.split('/').pop();
+      const alternativeUrl = `https://self-compassion.org/wp-content/uploads/meditations/${fileName}`;
+      
+      if (audioRef.current) {
+        audioRef.current.src = alternativeUrl;
+        audioRef.current.load();
+        setIsAudioLoading(true);
+        setAudioError(null);
+        
+        toast({
+          title: "Trying Alternative Source",
+          description: "Attempting to load from a different audio source.",
+        });
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <div className="flex items-center justify-between p-4">
@@ -247,6 +274,7 @@ const Session = () => {
       
       <main className="flex-1 flex flex-col items-center justify-center px-4 animate-fade-in">
         <div className="w-full max-w-xs text-center space-y-8">
+          {/* Session circle */}
           <div className="relative mx-auto">
             <div 
               className="w-48 h-48 rounded-full bg-secondary flex items-center justify-center mx-auto"
@@ -263,6 +291,7 @@ const Session = () => {
             </div>
           </div>
           
+          {/* Controls */}
           <div className="space-y-4">
             <div className="flex items-center justify-center gap-4">
               <Button 
@@ -287,6 +316,7 @@ const Session = () => {
               </Button>
             </div>
             
+            {/* Title and Loading Indicator */}
             <div className="text-center mt-4">
               <h2 className="text-lg font-medium">
                 {selectedMeditation?.title || 'Self-Compassion Break'}
@@ -298,7 +328,7 @@ const Session = () => {
                   </span>
                 ) : audioError ? (
                   <span className="text-destructive">
-                    {audioError}
+                    {audioError}. <Button variant="link" size="sm" className="p-0 h-auto text-sm underline" onClick={tryAlternativeUrl}>Try alternative source</Button>
                   </span>
                 ) : (
                   selectedMeditation?.description || 'A practice to remind yourself to apply self-compassion'
@@ -306,6 +336,7 @@ const Session = () => {
               </p>
             </div>
             
+            {/* Volume slider */}
             <div className="flex items-center gap-3 mt-6 px-2">
               <Volume2 size={16} className="text-muted-foreground" />
               <Slider
@@ -320,6 +351,7 @@ const Session = () => {
         </div>
       </main>
       
+      {/* Duration selector */}
       {!isPlaying && (
         <div className="p-8 animate-slide-up">
           <DurationSelector className="mb-4" />
