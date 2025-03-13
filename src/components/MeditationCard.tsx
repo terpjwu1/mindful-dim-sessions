@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Play, Clock } from 'lucide-react';
 import { Meditation, useMeditation } from '@/context/MeditationContext';
 import { useNavigate } from 'react-router-dom';
-import { formatDuration } from '@/utils/brightness';
+import { formatAudioDuration } from '@/utils/brightness';
 
 interface MeditationCardProps {
   meditation: Meditation;
@@ -13,11 +13,12 @@ interface MeditationCardProps {
 }
 
 const MeditationCard: React.FC<MeditationCardProps> = ({ meditation, className }) => {
-  const { setSelectedMeditation } = useMeditation();
+  const { setSelectedMeditation, setDuration } = useMeditation();
   const navigate = useNavigate();
   
   const startMeditation = () => {
     setSelectedMeditation(meditation);
+    setDuration(meditation.duration); // Make sure duration is set to match the meditation
     navigate('/session');
   };
   
@@ -33,7 +34,7 @@ const MeditationCard: React.FC<MeditationCardProps> = ({ meditation, className }
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
         <div className="absolute bottom-4 left-4 flex items-center text-white">
           <Clock size={14} className="mr-1.5" />
-          <span className="text-sm font-medium">{formatDuration(meditation.duration)}</span>
+          <span className="text-sm font-medium">{formatAudioDuration(meditation.duration)}</span>
         </div>
       </div>
       

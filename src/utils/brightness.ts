@@ -1,3 +1,4 @@
+
 // This utility file interfaces with native iOS functionality through Capacitor
 // For screen brightness and color filter functions
 
@@ -72,7 +73,7 @@ export const restoreOriginalSettings = async () => {
   // await Screen.restoreSettings();
 };
 
-// Keep existing utility functions
+// Utility functions for time formatting
 export const formatDuration = (seconds: number): string => {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
@@ -81,4 +82,21 @@ export const formatDuration = (seconds: number): string => {
 
 export const formatSecondsToMinutes = (seconds: number): string => {
   return `${Math.floor(seconds / 60)} min`;
+};
+
+// New utility function to format audio duration from seconds to human readable format
+export const formatAudioDuration = (seconds: number): string => {
+  if (seconds < 60) {
+    return `${seconds} seconds`;
+  } else if (seconds < 3600) {
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+  } else {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (minutes === 0) {
+      return `${hours} hour${hours !== 1 ? 's' : ''}`;
+    }
+    return `${hours} hour${hours !== 1 ? 's' : ''} ${minutes} minute${minutes !== 1 ? 's' : ''}`;
+  }
 };

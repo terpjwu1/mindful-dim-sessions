@@ -27,28 +27,28 @@ interface MeditationContextType {
 const defaultMeditations: Meditation[] = [
   {
     id: '1',
-    title: 'Body Scan',
-    description: 'A guided meditation to help you connect with your body.',
-    audioUrl: '/meditations/body-scan.mp3',
+    title: 'Self-Compassion Break',
+    description: 'A practice to remind yourself to apply the three components of self-compassion in daily life.',
+    audioUrl: 'https://self-compassion.org/wp-content/uploads/2015/12/self-compassion.break_.mp3',
     duration: 300, // 5 minutes in seconds
     isDefault: true,
     imageUrl: '/placeholder.svg'
   },
   {
     id: '2',
-    title: 'Breath Awareness',
-    description: 'Focus on your breath to anchor yourself in the present moment.',
-    audioUrl: '/meditations/breath-awareness.mp3',
-    duration: 180, // 3 minutes in seconds
+    title: 'Affectionate Breathing',
+    description: 'A meditation on the breath, with a focus on gentle, affectionate awareness.',
+    audioUrl: 'https://self-compassion.org/wp-content/uploads/meditations/affectionatebreathing.mp3',
+    duration: 1320, // 22 minutes in seconds
     isDefault: true,
     imageUrl: '/placeholder.svg'
   },
   {
     id: '3',
-    title: 'Mindful Relaxation',
-    description: 'Release tension and find deep relaxation with this guided practice.',
-    audioUrl: '/meditations/mindful-relaxation.mp3',
-    duration: 600, // 10 minutes in seconds
+    title: 'Loving-Kindness Meditation',
+    description: 'A meditation that focuses on developing feelings of goodwill, kindness, and warmth towards ourselves and others.',
+    audioUrl: 'https://self-compassion.org/wp-content/uploads/meditations/LKM.self-compassion.mp3',
+    duration: 1200, // 20 minutes in seconds
     isDefault: true,
     imageUrl: '/placeholder.svg'
   }

@@ -5,13 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Play, Pause, SkipBack, Volume2, X } from 'lucide-react';
 import { useMeditation } from '@/context/MeditationContext';
-import { formatDuration, setGreyscale, setScreenBrightness } from '@/utils/brightness';
+import { formatDuration, setGreyscale, setScreenBrightness, restoreOriginalSettings } from '@/utils/brightness';
 import DurationSelector from '@/components/DurationSelector';
+import { toast } from '@/components/ui/use-toast';
 
 const Session = () => {
   const { selectedMeditation, duration, isPlaying, setIsPlaying, isDimmed, setIsDimmed } = useMeditation();
   const [timeRemaining, setTimeRemaining] = useState(duration);
   const [isAudioReady, setIsAudioReady] = useState(false);
+  const [isAudioLoading, setIsAudioLoading] = useState(true);
   const [volume, setVolume] = useState(80);
   const navigate = useNavigate();
   const timerRef = useRef<number | null>(null);
@@ -19,18 +21,49 @@ const Session = () => {
 
   // Initialize audio when component mounts
   useEffect(() => {
-    audioRef.current = new Audio(selectedMeditation?.audioUrl || '/meditations/body-scan.mp3');
-    audioRef.current.addEventListener('canplaythrough', () => {
+    const audioSrc = selectedMeditation?.audioUrl || 'https://self-compassion.org/wp-content/uploads/2015/12/self-compassion.break_.mp3';
+    console.log('Loading audio from:', audioSrc);
+    
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+    }
+    
+    audioRef.current = new Audio(audioSrc);
+    audioRef.current.volume = volume / 100;
+    setIsAudioLoading(true);
+    
+    const handleCanPlay = () => {
+      console.log('Audio is ready to play');
       setIsAudioReady(true);
-    });
+      setIsAudioLoading(false);
+    };
+    
+    const handleError = (e: ErrorEvent) => {
+      console.error('Error loading audio:', e);
+      setIsAudioLoading(false);
+      toast({
+        title: "Audio Error",
+        description: "Unable to load the meditation audio. Please try again.",
+        variant: "destructive",
+      });
+    };
+    
+    audioRef.current.addEventListener('canplaythrough', handleCanPlay);
+    audioRef.current.addEventListener('error', handleError as EventListener);
+    
+    // Start loading the audio
+    audioRef.current.load();
     
     return () => {
       if (audioRef.current) {
+        audioRef.current.removeEventListener('canplaythrough', handleCanPlay);
+        audioRef.current.removeEventListener('error', handleError as EventListener);
         audioRef.current.pause();
         audioRef.current.src = '';
       }
     };
-  }, [selectedMeditation]);
+  }, [selectedMeditation, volume]);
 
   // Handle volume changes
   useEffect(() => {
@@ -47,8 +80,20 @@ const Session = () => {
   // Handle play/pause
   useEffect(() => {
     if (isPlaying) {
-      if (audioRef.current) {
-        audioRef.current.play();
+      if (audioRef.current && isAudioReady) {
+        const playPromise = audioRef.current.play();
+        
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.error('Error playing audio:', error);
+            setIsPlaying(false);
+            toast({
+              title: "Playback Error",
+              description: "Unable to play the meditation audio. Please try again.",
+              variant: "destructive",
+            });
+          });
+        }
       }
       
       // Apply screen dimming and grayscale when meditation starts
@@ -80,21 +125,37 @@ const Session = () => {
         clearInterval(timerRef.current);
       }
     };
-  }, [isPlaying, setIsDimmed]);
+  }, [isPlaying, setIsDimmed, isAudioReady]);
 
   // Cleanup when component unmounts
   useEffect(() => {
     return () => {
       // Restore screen brightness and remove grayscale when leaving
       if (isDimmed) {
-        setScreenBrightness(100);
-        setGreyscale(false);
+        restoreOriginalSettings();
         setIsDimmed(false);
+      }
+      
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
       }
     };
   }, [isDimmed, setIsDimmed]);
 
   const togglePlayPause = () => {
+    if (isAudioLoading) {
+      toast({
+        title: "Loading",
+        description: "The meditation audio is still loading. Please wait.",
+      });
+      return;
+    }
+    
     setIsPlaying(!isPlaying);
   };
 
@@ -108,9 +169,13 @@ const Session = () => {
     }
     
     // Restore screen settings
-    setScreenBrightness(100);
-    setGreyscale(false);
+    restoreOriginalSettings();
     setIsDimmed(false);
+    
+    toast({
+      title: "Meditation Complete",
+      description: "Your meditation session has ended.",
+    });
   };
 
   const resetSession = () => {
@@ -173,7 +238,7 @@ const Session = () => {
                 size="lg" 
                 className="rounded-full w-16 h-16 bg-primary hover:bg-primary/90"
                 onClick={togglePlayPause}
-                disabled={!isAudioReady}
+                disabled={isAudioLoading}
               >
                 {isPlaying ? (
                   <Pause size={24} />
@@ -183,13 +248,19 @@ const Session = () => {
               </Button>
             </div>
             
-            {/* Title */}
+            {/* Title and Loading Indicator */}
             <div className="text-center mt-4">
               <h2 className="text-lg font-medium">
-                {selectedMeditation?.title || 'Body Scan Meditation'}
+                {selectedMeditation?.title || 'Self-Compassion Break'}
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
-                {selectedMeditation?.description || 'A guided practice to connect with your body'}
+                {isAudioLoading ? (
+                  <span className="inline-flex items-center">
+                    <span className="animate-pulse-slow mr-2">●</span> Loading audio...
+                  </span>
+                ) : (
+                  selectedMeditation?.description || 'A practice to remind yourself to apply self-compassion'
+                )}
               </p>
             </div>
             
